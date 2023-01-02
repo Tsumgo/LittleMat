@@ -1,0 +1,29 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild", // build 就是编译器连续做 “预处理，编译，汇编，链接” 的过程。
+            "label": "C/C++: g++.exe build and debug active file", //指定这个前置任务的名称
+            "command": "D:\\Program Files (x86)\\mingw64\\bin\\gcc.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "${file}",
+                "-o",
+                // "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                "${fileDirname}\\a.exe"
+            ],   // 相当于执行 gcc -g 源文件名 -o a.exe 这件事
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "调试器生成的任务。"
+        }
+    ],
+    "version": "2.0.0"
+}

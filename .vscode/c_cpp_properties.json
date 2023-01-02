@@ -1,0 +1,21 @@
+// property 属性。 字面意思，c/cpp的属性配置
+{
+    "configurations": [
+        {
+            "name": "Win32", // 用来标识配置文件,一般是内核的名字就可以了,如"Linux"
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "D:\\Program Files (x86)\\mingw64\\bin\\gcc.exe", // 编译器的完整路径，例如/usr/bin/gcc，以启用更精确的intellisense。扩展将查询编译器，以确定系统包含的路径和用于智能感知的默认定义(网易翻译)
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}
