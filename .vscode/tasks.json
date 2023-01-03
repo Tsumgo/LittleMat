@@ -3,15 +3,14 @@
         {
             "type": "cppbuild", // build 就是编译器连续做 “预处理，编译，汇编，链接” 的过程。
             "label": "C/C++: g++.exe build and debug active file", //指定这个前置任务的名称
-            "command": "D:\\Program Files (x86)\\mingw64\\bin\\gcc.exe",
-            "args": [
+            "command": "D:\\Program Files (x86)\\mingw64\\bin\\gcc.exe", // 指定编译器， 一般是gcc 或者 g++
+            "args": [ //编译选项。
                 "-fdiagnostics-color=always",
-                "-g",
+                "-g", // 编译出带调试信息的可执行文件
                 "${file}",
-                "-o",
-                // "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                "-o",  // 指定生成的可执行文件名，也可以是"${fileDirname}\\${fileBasenameNoExtension}.exe"
                 "${fileDirname}\\a.exe"
-            ],   // 相当于执行 gcc -g 源文件名 -o a.exe 这件事
+            ],   // 编译器后的编译选项。 相当于执行 gcc -g 源文件名 -o a.exe 这件事
             "options": {
                 "cwd": "${fileDirname}"
             },
