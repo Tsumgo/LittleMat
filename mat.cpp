@@ -6,7 +6,7 @@
 #define abs(x) ((x) > 0 ? (x): -(x))
 
 
-const int MAXN = 500;
+const int MAXN = 50;
 
 void swap(double &x,double &y) 
 {
@@ -87,7 +87,7 @@ Vec proj(Vec &vecA, Vec &vecB)
 class M
 {
 protected:
-	double dat[MAXN][MAXN];
+	double dat[MAXN][MAXN] = {0};
 public:
 	int row, col;
 	M(int a, int b)
@@ -105,11 +105,6 @@ public:
 	{
 		int n=matrix.col;
 		M Q(n,n), R(n,n);
-		// if(detMatrix(matrix) == 0 )
-		// {
-		// 	printf("不好分解");
-		// 	return; 
-		// }
 		for (int i=1;i<=1000;i++)
 		{
 			Schmidt(Q,R,matrix);
@@ -117,14 +112,16 @@ public:
 		}
 		for (int i=0;i<n;i++)
 			for (int j=i+1;j<n;j++) R.dat[i][j]=0;
-		R.Output();
+		R.print();
 	}
 
 	double tr();
-	M Elimination(M Source);
+	void eli(int x,int y,int z);
+	void eli(int x,double div);
+	friend M Elimination(M Source);
 	double Det();
 	M Inv();
-	void Output();
+	void print();
 	void Input(int row, int col);
 };
 
@@ -133,12 +130,13 @@ void M::Input(int row,int col){
 		for (int j=0;j<col;j++) 
 			scanf("%lf",&this->dat[i][j]);
 }
-void M::Output(){
+void M::print(){
 	for (int i=0;i<this->row;i++){
 		for (int j=0;j<this->col;j++)
-			printf("%5.1lf ",this->dat[i][j]);
+			printf("%5.3lf ",this->dat[i][j]);
 		printf("\n");
 	}
+	puts("---------");
 }
 M operator * (const M &matrix_A, const M &matrix_B)
 {
@@ -177,13 +175,13 @@ M operator + (const M &matrix_A, const M &matrix_B)
 		}
 	return ret;
 }
-M operator ^ (const M &matrix, long long exp)
+M operator ^ (M Base, long long exp)
 {
-	if (matrix.col != matrix.row)
+	if (Base.col != Base.row)
 		puts("Not a square!"), exit(0);
-	M Base = matrix, ret = matrix;
-	for (exp--;exp;exp >>= 1ll, Base = Base * Base) 
-		if (exp&1ll) 
+	M ret = Base;
+	for (exp--;exp;exp >>= 1ll, Base = Base * Base)
+		if (exp&1ll)
 			ret = ret * Base;
 	return ret;
 }
@@ -227,47 +225,34 @@ double M::tr(){
 		ret += dat[i][i];
 	return ret;
 }
-double M::Det()
+double M::Det()// 
 {  // 这里会修改Source的值，就不引用了。 
 	int k = 1, f = 0;
-	double t, ans = 1.0, times;
+	double t, ans = 1, times;
 	if( col != row) return puts("Not a square!"), 0;
-	M tmp = Elimination(*this);
-		// for(int i = 0, j = 0;i < row-1 && j < row - 1;i++, j++){
-		// 	if( dat[i][j] == 0 ){
-		// 		for(f = i; dat[f][j] == 0 && f<row;++f);
-		// 		if(f == row) return 0;
-		// 		else{
-		// 			for(int s=0;s < col;++s){
-		// 				t=dat[i][s]; //Mat(Source,i,s);
-		// 				dat[i][s] = dat[f][s]; //Mat(Source,f,s);
-		// 				dat[f][s] = t;
-		// 			}
-		// 			k=-k;
-		// 		}
-		// 	}
-		// 	printf("====== adjust ======\n");
-		// 	Output();
-		// 	t = dat[i][j];
-		// 	for(int s = i + 1;s < row;++s){
-		// 		if(dat[s][j] != 0) 
-		// 		{
-		// 		times = dat[s][j]/t;
-		// 		for(int x = j;x < col;++x)	
-		// 			dat[s][x] = dat[s][x] - Source.dat[i][x] * times;
-		// 		}
-		// 	}	
-		// }
-	for (int i = 0; i < row;i++) ans*=dat[i][i];
+	// M tmp = Elimination(*this);
+	for (int i = 0; i < row;i++) 
+		ans*=dat[i][i];
 	return ans;
 }
-M M::Elimination(M expand)
+void M::eli(int x, int y, int z) // C[z] -= C[x] * dat[z][y]; 用x行消去z行，使z,y处变成阶梯头。
+{
+	double k = dat[z][y] / dat[x][y];
+	for (int i = 0; i < col; i++)
+		dat[z][i] -= k * dat[x][i];
+}
+void M::eli(int x, double div) 
+{
+	for (int i = 0; i < col;i++)
+		dat[x][i] /= div;
+}
+M Elimination(M expand)
 { // 阶梯型 阶梯头为1。
 		int f, i = 0, j = 0;
 		while (i < expand.row && j < expand.col)
 		{
 			f = i;
-			for (int k = 0;k < expand.row; k++)
+			for (int k = i + 1; k < expand.row; k++)
 				if (abs(expand.dat[k][j]) > abs(expand.dat[f][j]))
 				{
 					f = k;
@@ -281,26 +266,20 @@ M M::Elimination(M expand)
 				j++;
 				continue;
 			}
-			for (int k = expand.col - 1;k >= j;k--)
-			{ 
-				expand.dat[i][k] /= expand.dat[i][j];
-			}
+			expand.eli(i,expand.dat[i][j]);  // change dat[i][j] to 1
 			for (int k = i+1; k < expand.row; ++k)
-				for (int l = expand.col - 1;l >= j;l--)
-				{
-					expand.dat[k][l] -= expand.dat[k][j];
-				}
+				expand.eli(i,j,k);
 			i++;
 		}
 		return expand;
 }
 M  M::Inv()
-{
+{	
+	int n = col;
+	M ans(n,n), expand(n, n*2);
+
 	if (col != row) 
 		puts("Peculiar!"), exit(0);
-	int n = col;
-	M ans(n, n);
-	M expand(n, n*2);
 	for (int i = 0;i < n;i++)
 		for  (int j = 0;j < n*2;j++)
 		{
@@ -308,6 +287,10 @@ M  M::Inv()
 			else expand.dat[i][j] = (j-n == i);
 		}
 	expand = Elimination(expand);
+	for (int i = 1;i < expand.row; i++)
+		for (int j = 0; j < i ;j++)  // i i  C[j] -= dat[j][i] * C [i] ;
+			expand.eli(i,i,j);
+
 	for (int i = 0; i < n;i++) 
 		if (expand.dat[i][i] == 0) 
 			puts("Peculiar!"), exit(0);
@@ -318,23 +301,21 @@ M  M::Inv()
 }
  
 int n,m; long long k;
-int shit()
-{
-	// M A(1,1);
-	// printf("%d\n",sizeof (A));
-
-}
 int main(void) 
 {
 	freopen("in","r",stdin);
-	scanf("%d %d",&n,&m);
-	shit();
-	// M A(n,m), B(n,m);
+	scanf("%d%d",&n,&m);
+	M A(n,m), B(n,m);
 	// M B(n,n);
-	// A.input(), B.input();
-	// A.print();
+	A.Input(n,m);
+	(A.Inv()).print();
+	// printf("%.5lf\n",A.Det());
+	// B = Elimination(A);
 	// B.print();
-	// (A+B).print();
+	// (A^4).print();
+	// 3 11  ret = base  
+	// ret = base * base^1 
+	// base^2
 }
 // int main( int argc,char *argv[]){
 /*
