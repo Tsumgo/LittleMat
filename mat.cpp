@@ -19,18 +19,12 @@ void swap(double &x,double &y)
 class Vec
 {
 protected: // nonstatic member
-	double *dat;
+	double dat[MAXN];
 public: // static member
 	int row;
-	Vec(int a):row(a)
-	{
-		dat = (double*) calloc(a, sizeof (double));
-	}
+	Vec(int a):row(a){}
 	Vec(){}
-	~Vec()
-	{
-		
-	}
+	~Vec(){}
 	void input()
 	{
 		for (int i = 0;i < row;i++) 
@@ -90,37 +84,21 @@ protected:
 	double dat[MAXN][MAXN] = {0};
 public:
 	int row, col;
-	M(int a, int b)
-	{
-		row = a, col = b;
-	}
+	M(int a, int b):row(a), col(b){}
 	M(){}
 	~M(){}
 	M Trans();
+	double tr();
+	void Eig();
+	M Inv();
+	double Det();
 	friend M operator * (const M &matrix_A, const M &matrix_B);
 	friend M operator - (const M &matrix_A, const M &matrix_B);
 	friend M operator + (const M &matrix_A, const M &matrix_B);
 	friend void Schmidt (M &Q, M &R, const M matrix); 
-	void Eig(M matrix)
-	{
-		int n=matrix.col;
-		M Q(n,n), R(n,n);
-		for (int i=1;i<=1000;i++)
-		{
-			Schmidt(Q,R,matrix);
-			matrix = R * Q;
-		}
-		for (int i=0;i<n;i++)
-			for (int j=i+1;j<n;j++) R.dat[i][j]=0;
-		R.print();
-	}
-
-	double tr();
 	void eli(int x,int y,int z);
 	void eli(int x,double div);
 	friend M Elimination(M Source);
-	double Det();
-	M Inv();
 	void print();
 	void Input(int row, int col);
 };
@@ -195,12 +173,14 @@ M M::Trans()
 		}
 	return ret;
 }
-void Schmidt (M &Q, M &R, const M matrix) {
+void Schmidt (M &Q, M &R, const M matrix) 
+{
 	int n = matrix.row;
 	Vec a[n], b[n]; // column vector
 	for (int j = 0;j < n;j++)
 		for (int i = 0;i < n;i++) 
 		{
+			a[j].row = b[j].row = n;
 			a[j][i] = b[j][i] = matrix.dat[i][j];
 		} //Partition matrix into n columns.   
 	for (int i=0;i<n;i++)
@@ -218,6 +198,20 @@ void Schmidt (M &Q, M &R, const M matrix) {
 	} // merge n columns into Q
 	R = Q.Trans() * matrix;
 }
+void M::Eig()
+{
+	M matrix = *this;
+	int n = col;
+	M Q(n, n), R(n, n);
+	for (int i=1;i<=1000;i++)
+	{
+		Schmidt(Q, R, matrix);
+		matrix = R * Q;
+	}
+	for (int i = 0;i < n;i++)
+		for (int j = i + 1;j < n;j++) R.dat[i][j] = 0;
+	R.print();
+}
 double M::tr(){
 	if (col != row) {puts("Not a square!"); return 0;}
 	double ret = 0;
@@ -226,13 +220,29 @@ double M::tr(){
 	return ret;
 }
 double M::Det()// 
-{  // 这里会修改Source的值，就不引用了。 
-	int k = 1, f = 0;
-	double t, ans = 1, times;
+{  
+	double ans;
+	int i = 0, j = 0, f, cnt = 0;
 	if( col != row) return puts("Not a square!"), 0;
-	// M tmp = Elimination(*this);
+	M mat = *this;
+	while (i < row && j < col)
+	{
+		f = i;
+		for (int k = i + 1; k < row; k++)
+			if (abs(mat.dat[k][j]) > abs(mat.dat[f][j]))
+				f = k;
+		if (f != i) for (int k = 0;k < col;k++)
+		{
+			swap(mat.dat[i][k], mat.dat[f][k]);
+		} else cnt++;
+		if (mat.dat[i][j] == 0) return 0;
+		for (int k = i+1; k < row; ++k)
+			mat.eli(i,j,k);
+		i++, j++;
+	}
+	ans = cnt % 2? -1 : 1;
 	for (int i = 0; i < row;i++) 
-		ans*=dat[i][i];
+		ans *= mat.dat[i][i];
 	return ans;
 }
 void M::eli(int x, int y, int z) // C[z] -= C[x] * dat[z][y]; 用x行消去z行，使z,y处变成阶梯头。
@@ -241,13 +251,13 @@ void M::eli(int x, int y, int z) // C[z] -= C[x] * dat[z][y]; 用x行消去z行�
 	for (int i = 0; i < col; i++)
 		dat[z][i] -= k * dat[x][i];
 }
-void M::eli(int x, double div) 
+void M::eli(int x, double div)  // C[x] /= div; 
 {
 	for (int i = 0; i < col;i++)
 		dat[x][i] /= div;
 }
 M Elimination(M expand)
-{ // 阶梯型 阶梯头为1。
+{ // 阶梯型 阶梯头bubian 
 		int f, i = 0, j = 0;
 		while (i < expand.row && j < expand.col)
 		{
@@ -269,7 +279,7 @@ M Elimination(M expand)
 			expand.eli(i,expand.dat[i][j]);  // change dat[i][j] to 1
 			for (int k = i+1; k < expand.row; ++k)
 				expand.eli(i,j,k);
-			i++;
+			i++, j++;
 		}
 		return expand;
 }
@@ -287,16 +297,15 @@ M  M::Inv()
 			else expand.dat[i][j] = (j-n == i);
 		}
 	expand = Elimination(expand);
-	for (int i = 1;i < expand.row; i++)
+	for (int i = 0; i < expand.row; i++)
 		for (int j = 0; j < i ;j++)  // i i  C[j] -= dat[j][i] * C [i] ;
 			expand.eli(i,i,j);
-
 	for (int i = 0; i < n;i++) 
 		if (expand.dat[i][i] == 0) 
 			puts("Peculiar!"), exit(0);
 	for (int i = 0;i < n;i++)
-		for (int j = n;j < n*2;j++)
-			ans.dat[i][j-n] = expand.dat[i][j];
+		for (int j = n; j < n * 2; j++)
+			ans.dat[i][j - n] = expand.dat[i][j];
 	return ans;
 }
  
@@ -308,7 +317,9 @@ int main(void)
 	M A(n,m), B(n,m);
 	// M B(n,n);
 	A.Input(n,m);
-	(A.Inv()).print();
+	A.Eig();
+	// (A.Inv()).print();
+	// printf("%.3lf\n", A.Det());
 	// printf("%.5lf\n",A.Det());
 	// B = Elimination(A);
 	// B.print();
