@@ -91,7 +91,6 @@ public:
 	double tr();
 	void Eig();
 	M Inv();
-	double Det();
 	friend M operator * (const M &matrix_A, const M &matrix_B);
 	friend M operator - (const M &matrix_A, const M &matrix_B);
 	friend M operator + (const M &matrix_A, const M &matrix_B);
@@ -99,6 +98,7 @@ public:
 	void eli(int x,int y,int z);
 	void eli(int x,double div);
 	friend M Elimination(M Source);
+	double Det();
 	void print();
 	void Input(int row, int col);
 };
