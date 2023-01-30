@@ -70,15 +70,22 @@ Vec proj(Vec &vecA, Vec &vecB)
 }
 /*Vector*/
 /*Matrix*/
-Matrix::Matrix(int a, int b) : row(a), col(b)
+Matrix *Matrix::creatmatrix(int row, int col)
 {
-	*dat = new double[a];
-	for (int i = 0; i < b; i++)
-		dat[i] = new double[b];
+	Matrix mat;
+	mat.row = row, mat.col = col;
+	mat.dat = new double *[row]; // Why new (double *) [row] is wrong?
+	for (int i = 0; i < row; i++)
+		mat.dat[i] = new double[col];
+	return &mat;
 }
-Matrix::Matrix() {}
-Matrix::~Matrix() {}
-
+void Matrix::recycle(Matrix *matrix)
+{
+	for (int i = 0; i < matrix->row; i++)
+		delete[] matrix->dat[i];
+	delete[] matrix->dat;
+	delete matrix;
+}
 void Matrix::Input(int row, int col)
 {
 	for (int i = 0; i < row; i++)
@@ -97,14 +104,19 @@ void Matrix::print()
 }
 void Matrix::multi(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B)
 {
+	Matrix *temp = creatmatrix(matrix_A->row, matrix_B->col);
 	if (matrix_A->col != matrix_B->row)
 		puts("Not compatible!"), exit(0);
 	for (int i = 0; i < matrix_A->row; i++)
 		for (int j = 0; j < matrix_B->col; j++)
 			for (int k = 0; k < matrix_A->col; k++)
 			{
-				C->dat[i][j] += matrix_A->dat[i][k] * matrix_B->dat[k][j];
+				temp->dat[i][j] += matrix_A->dat[i][k] * matrix_B->dat[k][j];
 			}
+	for (int i = 0; i < matrix_A->row; i++)
+		for (int j = 0; j < matrix_B->col; j++)
+			C->dat[i][j] = temp->dat[i][j];
+	recycle(temp);
 }
 void Matrix::sub(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B)
 {
@@ -126,39 +138,37 @@ void Matrix::add(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B)
 			C->dat[i][j] = matrix_A->dat[i][j] + matrix_B->dat[i][j];
 		}
 }
-void Matrix::quickpow(Matrix *C, const Matrix *Base, long long exp)
-{
+void Matrix::quickpow(Matrix *C, Matrix *Base, long long exp)
+{ // Base 会被改变
 	if (Base->col != Base->row)
 		puts("Not a square!"), exit(0);
 	for (int i = 0; i < Base->col; i++)
 		C->dat[i][i] = 1;
 	C->col = C->row = Base->col;
-	while (exp)
-	{
+	for (; exp; exp >>= 1ll, multi(Base, Base, Base))
 		if (exp & 1ll)
 			multi(C, C, Base);
-	}
 }
-Matrix Matrix::Trans()
+
+void Matrix::Trans(Matrix *result, const Matrix *matrix)
 {
-	Matrix ret(col, row);
-	for (int i = 0; i < row; i++)
-		for (int j = 0; j < col; j++)
+	for (int i = 0; i < matrix->row; i++)
+		for (int j = 0; j < matrix->col; j++)
 		{
-			ret.dat[j][i] = dat[i][j];
+			result->dat[i][j] = matrix->dat[j][i];
 		}
-	return ret;
 }
-void Schmidt(Matrix &Q, Matrix &R, const Matrix matrix)
+void Matrix::Schmidt(Matrix *Q, Matrix *R, const Matrix *matrix)
 {
-	int n = matrix.row;
+	int n = matrix->row;
 	Vec a[n], b[n]; // column vector
+	// Matrix temp(matrix->row, matrix->col);
 	for (int j = 0; j < n; j++)
 		for (int i = 0; i < n; i++)
 		{
 			a[j].row = b[j].row = n;
-			a[j][i] = b[j][i] = matrix.dat[i][j];
-		} // Partition matrix into n columns.
+			a[j][i] = b[j][i] = matrix->dat[i][j];
+		} // Partition matrix into n columns->
 	for (int i = 0; i < n; i++)
 		for (int j = 0; j < i; j++)
 		{
@@ -169,25 +179,28 @@ void Schmidt(Matrix &Q, Matrix &R, const Matrix matrix)
 		double len = sqrt(inprod(b[j], b[j]));
 		for (int i = 0; i < n; i++)
 		{
-			Q.dat[i][j] = b[j][i] / len;
+			Q->dat[i][j] = b[j][i] / len;
 		}
 	} // merge n columns into Q
-	R = Q.Trans() * matrix;
+	Matrix *Q_trans = creatmatrix(matrix->row, matrix->col);
+	Trans(Q_trans, Q);
+	multi(R, Q_trans, matrix);
+	recycle(Q_trans);
 }
 void Matrix::Eig()
 {
-	Matrix matrix = *this;
+	Matrix *matrix = this;
 	int n = col;
-	Matrix Q(n, n), R(n, n);
+	Matrix *Q = creatmatrix(n, n), *R = creatmatrix(n, n);
 	for (int i = 1; i <= 1000; i++)
 	{
 		Schmidt(Q, R, matrix);
-		matrix = R * Q;
+		multi(matrix, R, Q);
 	}
 	for (int i = 0; i < n; i++)
 		for (int j = i + 1; j < n; j++)
-			R.dat[i][j] = 0;
-	R.print();
+			R->dat[i][j] = 0;
+	R->print();
 }
 double Matrix::tr()
 {
@@ -243,59 +256,57 @@ void Matrix::eli(int x, double div) // C[x] /= div;
 	for (int i = 0; i < col; i++)
 		dat[x][i] /= div;
 }
-Matrix Elimination(Matrix expand)
+void Matrix::Elimination(Matrix *expand)
 { // 阶梯型 阶梯头bubian
 	int f, i = 0, j = 0;
-	while (i < expand.row && j < expand.col)
+	while (i < expand->row && j < expand->col)
 	{
 		f = i;
-		for (int k = i + 1; k < expand.row; k++)
-			if (abs(expand.dat[k][j]) > abs(expand.dat[f][j]))
+		for (int k = i + 1; k < expand->row; k++)
+			if (abs(expand->dat[k][j]) > abs(expand->dat[f][j]))
 			{
 				f = k;
 			}
-		for (int k = 0; k < expand.col; k++)
+		for (int k = 0; k < expand->col; k++)
 		{
-			swap(expand.dat[i][k], expand.dat[f][k]);
+			swap(expand->dat[i][k], expand->dat[f][k]);
 		}
-		if (expand.dat[i][j] == 0)
+		if (expand->dat[i][j] == 0)
 		{
 			j++;
 			continue;
 		}
-		expand.eli(i, expand.dat[i][j]); // change dat[i][j] to 1
-		for (int k = i + 1; k < expand.row; ++k)
-			expand.eli(i, j, k);
+		expand->eli(i, expand->dat[i][j]); // change dat[i][j] to 1
+		for (int k = i + 1; k < expand->row; ++k)
+			expand->eli(i, j, k);
 		i++, j++;
 	}
-	return expand;
 }
-Matrix Matrix::Inv()
+void Matrix::invert(Matrix *ret, Matrix *source)
 {
-	int n = col;
-	Matrix ans(n, n), expand(n, n * 2);
+	int n = source->col;
+	Matrix *expand = creatmatrix(n, n * 2);
 
-	if (col != row)
+	if (source->col != source->row)
 		puts("Peculiar!"), exit(0);
 	for (int i = 0; i < n; i++)
 		for (int j = 0; j < n * 2; j++)
 		{
 			if (j < n)
-				expand.dat[i][j] = dat[i][j];
+				expand->dat[i][j] = source->dat[i][j];
 			else
-				expand.dat[i][j] = (j - n == i);
+				expand->dat[i][j] = (j - n == i);
 		}
-	expand = Elimination(expand);
-	for (int i = 0; i < expand.row; i++)
+	Elimination(expand);
+	for (int i = 0; i < expand->row; i++)
 		for (int j = 0; j < i; j++) // i i  C[j] -= dat[j][i] * C [i] ;
-			expand.eli(i, i, j);
+			expand->eli(i, i, j);
 	for (int i = 0; i < n; i++)
-		if (expand.dat[i][i] == 0)
+		if (expand->dat[i][i] == 0)
 			puts("Peculiar!"), exit(0);
 	for (int i = 0; i < n; i++)
 		for (int j = n; j < n * 2; j++)
-			ans.dat[i][j - n] = expand.dat[i][j];
-	return ans;
+			ret->dat[i][j - n] = expand->dat[i][j];
 }
 
 int n, m;
@@ -304,9 +315,9 @@ int main(void)
 {
 	freopen("in", "r", stdin);
 	scanf("%d%d", &n, &m);
-	Matrix A(n, m), B(n, m);
-	// Matrix B(n,n);
-	A.Input(n, m);
+	Matrix *A = Matrix::creatmatrix(n, m), *B = Matrix::creatmatrix(n, m);
+	A->Input(n, m);
+	A->print();
 	// A.Eig();
 	// (A.Inv()).print();
 	// printf("%.3lf\n", A.Det());
