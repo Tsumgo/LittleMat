@@ -30,10 +30,11 @@ public:
 	static Matrix *creatmatrix(int row, int col);
 	static void recycle(Matrix *matrix);
 	static void Trans(Matrix *result, const Matrix *matrix);
-	double tr();
+	static double trace(Matrix *source);
 	void Eig();
 	static void invert(Matrix *ret, Matrix *source);
 	static void multi(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B);
+	static void strassen(Matrix *C, const Matrix *A, const Matrix *B, int size);
 	static void sub(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B);
 	static void add(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B);
 	static void quickpow(Matrix *C, Matrix *Base, long long exp);
@@ -41,9 +42,9 @@ public:
 	void eli(int x, int y, int z);
 	void eli(int x, double div);
 	static void Elimination(Matrix *expand); // 静态成员函数。在整个类中共享。对类内的函数可以直接使用；类外使用需要 类名::方法名
-	double Det();
+	static double Det(Matrix *source);
 	void print(); // 非静态成员函数，使用时必须与一个对象匹配。如 A.print()
 	void Input(int row, int col);
-} M;
+};
 
 #endif

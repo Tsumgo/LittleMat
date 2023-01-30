@@ -1,6 +1,5 @@
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <cmath>
 #include <cstdlib>
 #include "Matrix.hpp"
@@ -72,12 +71,12 @@ Vec proj(Vec &vecA, Vec &vecB)
 /*Matrix*/
 Matrix *Matrix::creatmatrix(int row, int col)
 {
-	Matrix mat;
-	mat.row = row, mat.col = col;
-	mat.dat = new double *[row]; // Why new (double *) [row] is wrong?
+	Matrix *mat = new Matrix;
+	mat->row = row, mat->col = col;
+	mat->dat = new double *[row]; // Why new (double *) [row] is wrong?
 	for (int i = 0; i < row; i++)
-		mat.dat[i] = new double[col];
-	return &mat;
+		mat->dat[i] = new double[col];
+	return mat;
 }
 void Matrix::recycle(Matrix *matrix)
 {
@@ -104,19 +103,35 @@ void Matrix::print()
 }
 void Matrix::multi(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B)
 {
-	Matrix *temp = creatmatrix(matrix_A->row, matrix_B->col);
+	Matrix *temp = creatmatrix(matrix_A->row, matrix_B->col), *matrix_B1 = creatmatrix(matrix_B->col, matrix_B->row);
 	if (matrix_A->col != matrix_B->row)
 		puts("Not compatible!"), exit(0);
+	Trans(matrix_B1, matrix_B); // 转置后乘
 	for (int i = 0; i < matrix_A->row; i++)
 		for (int j = 0; j < matrix_B->col; j++)
+		{
+			double sum = 0;
 			for (int k = 0; k < matrix_A->col; k++)
 			{
-				temp->dat[i][j] += matrix_A->dat[i][k] * matrix_B->dat[k][j];
+				sum += matrix_A->dat[i][k] * matrix_B1->dat[j][k]; // modified
 			}
+			temp->dat[i][j] = sum;
+		}
 	for (int i = 0; i < matrix_A->row; i++)
 		for (int j = 0; j < matrix_B->col; j++)
 			C->dat[i][j] = temp->dat[i][j];
-	recycle(temp);
+	recycle(temp), recycle(matrix_B1);
+}
+void Matrix::strassen(Matrix *C, const Matrix *A, const Matrix *B, int size)
+{
+	if (size <= 64)
+	{
+		multi(C, A, B);
+		return;
+	}
+
+	// 分块
+	//
 }
 void Matrix::sub(Matrix *C, const Matrix *matrix_A, const Matrix *matrix_B)
 {
@@ -149,13 +164,12 @@ void Matrix::quickpow(Matrix *C, Matrix *Base, long long exp)
 		if (exp & 1ll)
 			multi(C, C, Base);
 }
-
 void Matrix::Trans(Matrix *result, const Matrix *matrix)
 {
 	for (int i = 0; i < matrix->row; i++)
 		for (int j = 0; j < matrix->col; j++)
 		{
-			result->dat[i][j] = matrix->dat[j][i];
+			result->dat[j][i] = matrix->dat[i][j];
 		}
 }
 void Matrix::Schmidt(Matrix *Q, Matrix *R, const Matrix *matrix)
@@ -202,33 +216,33 @@ void Matrix::Eig()
 			R->dat[i][j] = 0;
 	R->print();
 }
-double Matrix::tr()
+double Matrix::trace(Matrix *source)
 {
-	if (col != row)
+	if (source->col != source->row)
 	{
 		puts("Not a square!");
 		return 0;
 	}
 	double ret = 0;
-	for (int i = 0; i < col; i++)
-		ret += dat[i][i];
+	for (int i = 0; i < source->col; i++)
+		ret += source->dat[i][i];
 	return ret;
 }
-double Matrix::Det() //
+double Matrix::Det(Matrix *source) //
 {
 	double ans;
 	int i = 0, j = 0, f, cnt = 0;
-	if (col != row)
+	if (source->col != source->row)
 		return puts("Not a square!"), 0;
-	Matrix mat = *this;
-	while (i < row && j < col)
+	Matrix mat = *source; // 栈区， 会自行删除
+	while (i < mat.row && j < mat.col)
 	{
 		f = i;
-		for (int k = i + 1; k < row; k++)
+		for (int k = i + 1; k < mat.row; k++)
 			if (abs(mat.dat[k][j]) > abs(mat.dat[f][j]))
 				f = k;
 		if (f != i)
-			for (int k = 0; k < col; k++)
+			for (int k = 0; k < mat.col; k++)
 			{
 				swap(mat.dat[i][k], mat.dat[f][k]);
 			}
@@ -236,12 +250,12 @@ double Matrix::Det() //
 			cnt++;
 		if (mat.dat[i][j] == 0)
 			return 0;
-		for (int k = i + 1; k < row; ++k)
+		for (int k = i + 1; k < mat.row; ++k)
 			mat.eli(i, j, k);
 		i++, j++;
 	}
 	ans = cnt % 2 ? -1 : 1;
-	for (int i = 0; i < row; i++)
+	for (int i = 0; i < mat.row; i++)
 		ans *= mat.dat[i][i];
 	return ans;
 }
@@ -257,7 +271,7 @@ void Matrix::eli(int x, double div) // C[x] /= div;
 		dat[x][i] /= div;
 }
 void Matrix::Elimination(Matrix *expand)
-{ // 阶梯型 阶梯头bubian
+{ // 对expand进行高斯消元。
 	int f, i = 0, j = 0;
 	while (i < expand->row && j < expand->col)
 	{
@@ -308,26 +322,30 @@ void Matrix::invert(Matrix *ret, Matrix *source)
 		for (int j = n; j < n * 2; j++)
 			ret->dat[i][j - n] = expand->dat[i][j];
 }
-
+#define creatmatrix Matrix::creatmatrix
+#define multi Matrix::multi
+#define add Matrix::add
+#define sub Matrix::sub
+#define Trans Matrix::Trans
+#define trace Matrix::trace
 int n, m;
 long long k;
 int main(void)
 {
 	freopen("in", "r", stdin);
 	scanf("%d%d", &n, &m);
-	Matrix *A = Matrix::creatmatrix(n, m), *B = Matrix::creatmatrix(n, m);
+	Matrix *A = creatmatrix(n, m), *B = creatmatrix(n, m);
 	A->Input(n, m);
-	A->print();
-	// A.Eig();
-	// (A.Inv()).print();
-	// printf("%.3lf\n", A.Det());
-	// printf("%.5lf\n",A.Det());
-	// B = Elimination(A);
-	// B.print();
-	// (A^4).print();
-	// 3 11  ret = base
-	// ret = base * base^1
-	// base^2
+	B->Input(n, m);
+	Matrix *C = creatmatrix(m, n);
+	Trans(C, B);
+	Matrix *D = creatmatrix(n, n);
+	multi(D, A, C);
+	D->print();
+	Matrix *result = creatmatrix(n, n);
+	// Matrix::quickpow(result, D, 3);
+	// result->print();
+	// printf("%.2lf", Matrix::Det(D));
 }
 // int main( int argc,char *argv[]){
 /*
